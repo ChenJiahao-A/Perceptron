@@ -51,7 +51,7 @@ def draw_dot(graph, worksheet, dimension):
         graph.set_ylabel('x2')
 
 
-def draw_target(graph, worksheet, dimension):
+def draw_original(graph, worksheet, dimension):
     w = np.ones([dimension], dtype=float, order='C')
     x = np.zeros([dimension], dtype=float, order='C')
     judge = 0
@@ -64,7 +64,7 @@ def draw_target(graph, worksheet, dimension):
             judge = judge + x[j]*w[j]
         y = worksheet.cell(i, dimension+2).value
         judge = y*(judge + b)
-        while judge < 0:
+        while judge <= 0:
             judge = 0
             for k in range(dimension):
                 w[k] = w[k] + eta * x[k] * y
@@ -87,15 +87,64 @@ def draw_target(graph, worksheet, dimension):
         graph.plot_surface(x1, x2, y)
 
 
+def draw_dual(graph, worksheet, dimension):
+    gram = np.zeros([worksheet.max_row-1, worksheet.max_row-1], dtype=float, order='C')
+    for i in range(worksheet.max_row-1):
+        for j in range(i, worksheet.max_row-1):
+            for k in range(dimension):
+                gram[i][j] = gram[i][j] + worksheet.cell(i+2, k+2).value*worksheet.cell(j+2, k+2).value
+            gram[j][i] = gram[i][j]
+    a = np.zeros([worksheet.max_row - 1], dtype=float, order='C')
+    b = 0
+    eta = 0.1
+    judge = 0
+    i = 0
+    while i < worksheet.max_row - 1:
+        temp = 1
+        y = worksheet.cell(i + 2, dimension + 2).value
+        while judge <= 0:
+            judge = 0
+            for j in range(0, worksheet.max_row-1):
+                yj = worksheet.cell(j+2, dimension+2).value
+                judge = judge + a[j]*yj*gram[i][j]
+            judge = y*(judge + b)
+            if judge <= 0:
+                a[i] = a[i] + eta
+                b = b + eta*y
+                temp = 0
+        judge = 0
+        i = i + 1
+        if temp == 0:
+            i = 0
+    w = np.zeros([dimension], dtype=float, order='c')
+    for i in range(worksheet.max_row-1):
+        y = worksheet.cell(i + 2, dimension + 2).value
+        for j in range(dimension):
+            x = worksheet.cell(i+2, j+2).value
+            w[j] = w[j] + a[i]*x*y
+
+    if dimension == 2:
+        x = np.arange(-100, 100)
+        y = -(w[0]*x + b)/w[1]
+        graph.plot(x, y)
+    elif dimension == 3:
+        x1 = np.arange(-100, 100)
+        x2 = np.arange(-100, 100)
+        x1, x2 = np.meshgrid(x1, x2)
+        y = -(x1*w[0] + x2*w[1] + b)/w[2]
+        graph.plot_surface(x1, x2, y)
+
+
 def draw_2dimension():
     wb = openpyxl.load_workbook("Perceptron.xlsx")
     ws = wb["two-dimension"]
     fig = plt.figure()
     gra = fig.add_subplot(111)
-
     generate(wb, ws, 2)
     draw_dot(gra, ws, 2)
-    draw_target(gra, ws, 2)
+
+    #  draw_dual(gra, ws, 2)
+    draw_original(gra, ws, 2)
 
     plt.show()
 
@@ -107,7 +156,9 @@ def draw_3dimension():
     fig = plt.figure()
     gra = fig.add_subplot(111, projection='3d')
     draw_dot(gra, ws, 3)
-    draw_target(gra, ws, 3)
+
+    draw_original(gra, ws, 3)
+    #  draw_dual(gra, ws, 3)
     plt.show()
 
 
